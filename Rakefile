@@ -25,7 +25,7 @@ task :mountapp, [:app] do |t,args|
   app_info_str = IO.read("#{args.app}/appinfo.json")
   app_info = ActiveSupport::JSON.decode(app_info_str)
   path = "/media/cryptofs/apps/usr/palm/applications/#{app_info['id']}"
-  sh "sshfs -p 5522 root@192.168.112.1:#{path} remote"
+  sh "sshfs -p 5522 root@localhost:#{path} remote"
 end
 
 desc "umount a remote directory"
