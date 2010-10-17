@@ -1,3 +1,5 @@
+host = ENV['HOST'] || 'localhost'
+
 desc "generate sample hello app"
 task :generate do
   sh "palm-generate -t hello_app hello"
@@ -14,7 +16,7 @@ end
 desc "mount a remote directory"
 task :mount, [:remote] do |t,args|
   exit unless args.remote
-  sh "sshfs -p 5522 root@localhost:#{args[:remote]} remote"
+  sh "sshfs -p 5522 root@#{host}:#{args[:remote]} remote"
 end
 
 
@@ -25,7 +27,7 @@ task :mountapp, [:app] do |t,args|
   app_info_str = IO.read("#{args.app}/appinfo.json")
   app_info = ActiveSupport::JSON.decode(app_info_str)
   path = "/media/cryptofs/apps/usr/palm/applications/#{app_info['id']}"
-  sh "sshfs -p 5522 root@localhost:#{path} remote"
+  sh "sshfs -p 5522 root@#{host}:#{path} remote"
 end
 
 desc "umount a remote directory"
@@ -33,9 +35,9 @@ task :umount do |t, args|
   sh "fusermount -u remote"
 end
 
-desc "tunnel centaur to localhost:5581"
+desc "tunnel centaur to #{host}:5581"
 task "tunnel" do
-  sh "ssh -p 5522  -L5581:localhost:8080 root@localhost"
+  sh "ssh -p 5522  -L5581:#{host}:8080 root@#{host}"
 end
 
 desc "rsync source to target"
