@@ -15,7 +15,6 @@ FirstAssistant.prototype.setup = function() {
 	/* update the app info using values from our app */
 	this.controller.get("app-title").update(Mojo.appInfo.title);
 	this.controller.get("app-id").update(Mojo.appInfo.id);
-	this.controller.get("app-id").update('ad1');
 	this.controller.get("app-version").update(Mojo.appInfo.version);
 	var c = this.controller, e = Mojo.Event;
 	c.setupWidget('button', {}, { label: 'other' });
