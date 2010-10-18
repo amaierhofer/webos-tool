@@ -2,11 +2,9 @@
 View and debug webos applications installed on your emulator in your browser.
 
 ## How to get started
-* rake run to build, package, deploy and run application on emulator
-* mkdir remote - use as mountpoint for application on emulator
-* rake mountapp[hello]  - to mount app (assumes rails, i.e. active_support is present)
-* rake server[hello,remote]  - to start monitoring  (assumes you have nodejs and common libs)
+* rake generate - to generate sample hello world application
 * rake tunnel - to create tunnel for emulators webserver
+* rake server[hello] - to start monitoring (assumes you have nodejs and common libs)
 * point your browser to http://localhost:3000
 
 now if you modify files in ./hello your browser view should refresh automatically

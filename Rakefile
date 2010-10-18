@@ -13,7 +13,7 @@ task :run do
   sh "palm-log -f com.yourdomain.hello"
 end
 
-desc "mount a remote directory"
+desc "mount a remote directory on the emulator"
 task :mount, [:remote] do |t,args|
   exit unless args.remote
   sh "sshfs -p 5522 root@#{host}:#{args[:remote]} remote"
@@ -24,6 +24,7 @@ desc "mount a remote application"
 task :mountapp, [:app] do |t,args|
   exit unless args.app
   require 'active_support'
+	sh "mkdir -p remote"
   app_info_str = IO.read("#{args.app}/appinfo.json")
   app_info = ActiveSupport::JSON.decode(app_info_str)
   path = "/media/cryptofs/apps/usr/palm/applications/#{app_info['id']}"
@@ -35,19 +36,21 @@ task :umount do |t, args|
   sh "fusermount -u remote"
 end
 
-desc "tunnel centaur to #{host}:5581"
+desc "tunnel centaur to localhost:5581"
 task "tunnel" do
   sh "ssh -p 5522  -L5581:#{host}:8080 root@#{host}"
+	sh "rmdir remote"
 end
+
+desc "run the node server"
+task :server, :app, :needs => :mountapp do |t,args|
+  exit unless args[:app] 
+  sh "node lib/app.js #{args[:app]} remote"
+end
+
 
 desc "rsync source to target"
 task :rsync, [:source,:target] do |t,args|
   exit unless args[:source] and args[:target]
   sh "rsync -av #{args[:source]} #{args[:target]}"
-end
-
-desc "run the node server"
-task :server, [:source,:target] do |t,args|
-  exit unless args[:source] and args[:target]
-  sh "node app/app.js #{args[:source]} #{args[:target]}"
 end
