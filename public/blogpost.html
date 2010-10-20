@@ -1,0 +1,92 @@
+<p>At their recent developer day in New York Palm / HP announced Enyo<a href="#ftn_1">[1]</a>, a new framework for their upcoming mobile phones and tablets. Among many improvements, Enyo will allow developers to run and debug applications in their browsers, leveraging the impressive tool suite that is built into a modern day browser.</p>
+<p>What few people seem to realize is that you can run and debug webOS applications in your browser even today! Some limitations apply, but webOS development in your browser is possible and it provides a good starting point to explore the webOS platform. In this post, we will explain how to</p>
+<ol>
+	<li>Run your webOS application in the browser</li>
+	<li>Interact with Mojo via the browser&rsquo;s javascript console</li>
+	<li>Establish an instant reload mechanism whenever you make changes</li>
+</ol>
+<p>We assume you have webOS SDK 1.4.5 installed, are working on a linux system and use chrome as your browser. The sources for this tutorial are available at GitHub<a href="#ftn_2">[2]</a>. While this tutorial explains each step in detail using the SDK&rsquo;s tools only, the project includes a Rakefile which provides a target for each step making the tutorial more convenient and less error-prone.</p>
+<h1>View your app in your desktop browser</h1>
+<p>Here we will show you how to get the sample application of the SDK running in your browser. Use the SDK tools to create a sample application. The hello world sample bundled with the SDK will do but feel free to start with your own.</p>
+<pre>host&gt; palm-generate -t hello_app -p &quot;title=Hello&quot; hello
+host&gt; palm-package hello
+host&gt; palm-install com.yourdomain.hello_1.0.0_all.ipk
+host&gt; palm-launch com.yourdomain.hello
+</pre>
+<p>Alternatively execute the following rake tasks</p>
+<pre>host&gt; rake palm:generate palm:run</pre>
+<p>After deploying the application onto the emulator we will make it available to our desktop browser. The emulator runs a web server (centaur) on port 8080, which hosts the deployed applications. To view and run the applications installed, we have to forward that emulator&rsquo;s port 8080 to a port on our local machine<a href="#ftn_3">[3]</a>.</p>
+<pre>host&gt; ssh -p 5522 -L 5581:localhost:8080 root@localhost</pre>
+<p>Alternatively execute the following rake task</p>
+<pre>host&gt; rake ssh:tunnel</pre>
+<p>Now point your browser to <a href="http://localhost:5581/Apps/">http://localhost:5581/Apps/</a> and click the link for the previously deployed &ldquo;hello&rdquo; application. For multi stage applications you have to ensure that your browser does not block popups.</p>
+<p>Running apps in your browser enables you to use the chrome developer tools to inspect the application&rsquo;s DOM and CSS. Furthermore you can use chrome&rsquo;s javascript console and debugger to explore the inner state of your application, inspect variables or the callstack.</p>
+<p>Another feature is that you can escape the IFrame that the application is embedded in by prepending &ldquo;index.html&rdquo; to the device parameter of the URL. This allows you to work with Palm&rsquo;s Mojo Framework directly, i.e. the Mojo object is available in your javascript console.</p>
+<p><img alt="sample hello world application executing in chrome using js console to debug" height="580" src="http://blog.innovations-software.com/wp-content/uploads/sample-debug.png" width="606" /></p>
+<h1>Introducing Hot Deployment</h1>
+<p>To reflect any changes in the application&rsquo;s source file, we still have to package and push the application to the emulator manually. This is tedious and slows down development. So, how can we improve this?</p>
+<p>An obvious improvement of this process is automating the commands as we did&nbsp;in our Rakefile. But this still keeps you waiting while the application is being built and redeployed for every minor modification. We can do better than that! Using SSHFS we can edit our application&rsquo;s files directly on the emulator allowing us to skip the deployment process all together.</p>
+<h1>Use SSHFS to speed up deployment</h1>
+<p>To achieve this, we have to install new software on our emulator. We will first install Preware, and then we use Preware to install the SFTP package.</p>
+<p>As long as you are online installing Preware is straight forward. Simply &nbsp;connect to your emulator and execute the following commands<a href="#ftn_4">[4]</a>:</p>
+<pre>emulator&gt; cd /tmp
+emulator&gt; wget http://bit.ly/preware-bootstrap
+emulator&gt; sh preware-bootstrap</pre>
+<p>To mount the emulator&#39;s filesystem from your desktop we will install SFTP using Preware. Start Preware, search for SFTP and install the package. After that&rsquo;s done you have to fix the missing symlink.</p>
+<pre>emulator&gt; ln -s /opt/libexec/sftp-server /usr/libexec/sftp-server</pre>
+<p>Now to verify that the SFTP server is running and you can mount the emulator&rsquo;s filesystem locally. The mount point remote has to exist in your working directory.</p>
+<pre>host&gt; sshfs -d -p 5522 root@localhost:/ ./remote</pre>
+<p>You can drop the debug flag (-d) once you verified mounting works. Use the following command to unmount.</p>
+<pre>host&gt; fusermount &ndash;u remote</pre>
+<p>Both commands also have associated rake tasks.</p>
+<pre>host&gt; rake ssh:mount[/path/to/remote/directory]
+host&gt; rake ssh:umount
+</pre>
+
+<p>You can also use rake to mount a specific application by name, e.g.</p>
+<pre>host&gt; rake ssh:app[hello]
+</pre>
+<h1>Instant reload via WebSocket and nodejs</h1>
+<p>Now that we can access the application&rsquo;s files on the emulator locally, any changes we make on those files are reflected in the browser when these files are reloaded.</p>
+<p>On this premise we define the following workflow that should restart our applications whenever we make any changes to it.</p>
+<ol>
+	<li>Monitor our source files for modifications</li>
+	<li>When files are modified, copy those files to the locally mounted application directory</li>
+	<li>Inform the browser that files have changed</li>
+	<li>Use Palm&rsquo;s Mojo framework to fetch those files and reload the application</li>
+</ol>
+<p>Step 1, 2 and 3 are taken care of by a simple nodejs application. Step4 is done by a single javascript file you include in your application&rsquo;s index.html file.</p>
+<p>There is an easy and comfortable way to perform a local (i. e. in your home directory) installation of nodejs provided by a script available at GitHub<a href="#ftn_5">[5]</a>. In addition to node itself, the script also performs a local installation of npm, the node package manager.</p>
+<pre>bash &lt; &lt;(curl https://gist.github.com/raw/579814/d7c6ccee3c6946a7fdfaf37395218d9f8d2ae178/node-and-npm-in-30-seconds.sh)</pre>
+<p>We use npm to install the packages our node application needs.</p>
+<pre>host&gt; npm install connect
+host&gt; npm install express
+host&gt; npm install socket.io
+</pre>
+<p>Once &nbsp;all required packages are in place you simply must update your application&#39;s index.html by adding the following lines at the end of the header. If you used rake to generate the application, those lines have already been added for you.</p>
+<pre>&lt;script src=&quot;http://localhost:3000/js/jquery.js&quot; type=&quot;text/javascript&quot; &gt;&lt;/script&gt;
+&lt;script src=&quot;http://localhost:3000/js/socket.io.js&quot; type=&quot;text/javascript&quot; &gt;&lt;/script&gt;
+&lt;script src=&quot;http://localhost:3000/js/reloader.js&quot; type=&quot;text/javascript&quot; &gt;&lt;/script&gt;
+</pre>
+<p>We have reached the last step of our tutorial. To take advantage of instant reloading you must ensure the application directory on the emulator&rsquo;s filesystem is mounted locally and that the nodejs application is running. The nodejs application takes two arguments. The first parameter is the path to your local application and the second parameter is the path to the directory where you have mounted the application&rsquo;s directory on the emulator.</p>
+<pre>host&gt; mkdir &ndash;p remote
+host&gt; sshfs -d -p 5522 root@localhost:/ ./remote
+host&gt; node lib/app.js hello remote
+</pre>
+<p>Alternatively you can use the following rake task</p>
+<pre>host&gt; rake node:run[hello]
+</pre>
+<p>Next, point your browser to <a href="http://localhost:3000/">http://localhost:3000</a> and give it some time to load the required resources (you can already use your chrome console to see what is going on). After your application rendered in the browser, it should now automatically reload with your changes applied whenever you modify a file.</p>
+<h1>Benefits and Limitations</h1>
+<p>Using the approach described above, you get rapid feedback on any change made during development and are able to track down programming errors more efficiently using a comfortable debugging tool. Also you can explore the Mojo framework directly from your browser&rsquo;s javascript console. There are some problems with complex applications or widgets (e.g. the WebView widget) the approach introduced here is best used when building a new application from scratch. If you encouter any problems, please use the github project to report them and keep in mind that your application is running in your desktop browser. Always carry out acceptance tests on the actual device.</p>
+
+<p>In conclusion we believe that developers are most efficient when they use the tools they are already accustomed with, so we believe that in browser development is the right way forward and we are excited to see that Enyo will embrace this concept. What are your thoughts on that?
+</p>
+<div>
+	<p>[1]<a href="http://www.slashgear.com/palm-enyo-app-framework-due-2011-for-phone-tablet-devs-video-22115429/" name="ftn_1">http://www.slashgear.com/palm-enyo-app-framework-due-2011-for-phone-tablet-devs-video-22115429/</a></p>
+	<p>[2]<a href="http://github.com/amaierhofer/webos-tool" name="ftn_2">http://github.com/amaierhofer/webos-tool</a></p>
+	<p>[3]<a href="http://developer.palm.com/index.php?id=1744#emulator_host_mode" name="ftn_3">http://developer.palm.com/index.php?id=1744#emulator_host_mode</a></p>
+	<p>[4]<a href="http://www.webos-internals.org/wiki/Application:Preware#Installing_Preware_from_the_Commandline" name="ftn_4">http://www.webos-internals.org/wiki/Application:Preware#Installing_Preware_from_the_Commandline</a></p>
+	<p>[5]<a href="http://gist.github.com/raw/579814/d7c6ccee3c6946a7fdfaf37395218d9f8d2ae178/node-and-npm-in-30-seconds.sh" name="ftn_5">http://gist.github.com/raw/579814/d7c6ccee3c6946a7fdfaf37395218d9f8d2ae178/node-and-npm-in-30-seconds.sh</a></p>
+</div>
+
