@@ -5,12 +5,22 @@
 	ws.on('message', function(msg) {
 		$("script[src^='app']").remove();
 		$("body").attr('class', '').find('*').remove();
+		$("link[href*='" + Mojo.appInfo.title + ".css']").each(updateStylesheet);
 		Mojo.View.templates = {};
 		Mojo.loadApplicationSources();
 	});
 	ws.on('disconnect', function() {
 		console.log('disconnected');
 	});
+
+	function updateStylesheet(i,node) {
+		//$(node).remove();
+		$.ajax({url: node.href, success: function(data) {
+			var style = '<style>' + data + '</style>';
+			$("body").append(style);
+		}});
+		console.log(node.href);
+	}
 
 	var _palmGetResources = palmGetResource;
 	palmGetResource = function(resource) { 
