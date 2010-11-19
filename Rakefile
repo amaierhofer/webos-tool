@@ -29,7 +29,7 @@ namespace :palm do
     str.gsub! /<\/head>/, string
     File.open("#{app}/index.html", "w") {|f| f.puts str}
     Rake::Task['palm:install'].invoke
-    puts "Create new application #{app}"
+    puts "Created new application #{app}"
   end
 
   desc "install application on emulator"
