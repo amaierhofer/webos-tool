@@ -44,6 +44,17 @@ namespace :palm do
 		sh "palm-launch com.yourdomain.hello"
 		sh "palm-log -f com.yourdomain.hello"
 	end
+
+  desc "follow logs"
+  task :log do
+		sh "palm-log -f com.yourdomain.hello"
+  end
+
+	desc "clear directory and device" 
+	task :clear do
+		sh "rm -f com.yourdomain.hello_1.0.0_all.ipk"
+		sh "palm-install -r com.yourdomain.hello"
+	end
 end
 
 namespace :ssh do
